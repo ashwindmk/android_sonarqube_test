@@ -1,0 +1,112 @@
+plugins {
+    id 'com.android.application'
+    id 'jacoco'
+    id 'org.sonarqube'
+}
+
+jacoco {
+    toolVersion = '0.8.6'  // Same as org.jacoco.core classpath version
+}
+
+android {
+    compileSdkVersion 30
+    buildToolsVersion "30.0.3"
+
+    defaultConfig {
+        applicationId "com.ashwin.android.sonarqube"
+        minSdkVersion 23
+        targetSdkVersion 30
+        versionCode 1
+        versionName "1.0"
+
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    buildTypes {
+        debug {
+            testCoverageEnabled true
+        }
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+    testOptions {
+        unitTests.all {
+            jacoco {
+                includeNoLocationClasses = true
+                jacoco.excludes = ['jdk.internal.*']
+            }
+        }
+        execution 'ANDROID_TEST_ORCHESTRATOR'
+        animationsDisabled true
+        unitTests {
+            includeAndroidResources = true
+        }
+    }
+}
+
+dependencies {
+    implementation 'androidx.appcompat:appcompat:1.3.1'
+    implementation 'com.google.android.material:material:1.4.0'
+    implementation 'androidx.constraintlayout:constraintlayout:2.1.0'
+    testImplementation 'junit:junit:4.13.2'
+    androidTestImplementation 'androidx.test.ext:junit:1.1.3'
+    androidTestImplementation 'androidx.test.espresso:espresso-core:3.4.0'
+}
+
+def unitTestCoverageExclusions = [
+        '**/R.class',
+        '**/R$*.class',
+        '**/*$ViewInjector*.*',
+        '**/*$ViewBinder*.*',
+        '**/BuildConfig.*',
+        '**/Manifest*.*',
+        '**/*Activity.java',
+        '**/*Fragment.java',
+        '**/*Adapter.java',
+        '**/*Dialog.java',
+        '**/*View.java',
+        '**/*Application.java'
+]
+
+task jacocoUnitTestReport(type: JacocoReport, dependsOn: ['testDebugUnitTest']) {
+    def coverageSourceDirs = ["src/main/java"]
+    def javaClasses = fileTree(dir: "$buildDir/intermediates/javac/debug/classes", excludes: unitTestCoverageExclusions)
+    def kotlinClasses = fileTree(dir: "$buildDir/tmp/kotlin-classes/debug", excludes: unitTestCoverageExclusions)
+    classDirectories.from = files([javaClasses, kotlinClasses])
+    additionalSourceDirs.from = files(coverageSourceDirs)
+    sourceDirectories.from = files(coverageSourceDirs)
+    executionData.from = fileTree(dir: "$buildDir", includes: ["jacoco/testDebugUnitTest.exec"])
+
+    reports {
+        csv.enabled = false
+        xml.enabled = true
+        html.enabled = false
+    }
+}
+
+sonarqube {
+    properties {
+        property "sonar.projectName", "Android SonarQube Test"
+        property "sonar.projectKey", "com.ashwin.android.sonarqube"
+        property "sonar.host.url", "http://localhost:9000"
+        property "sonar.language", "java"
+        property "sonar.sources", "src/main/"
+        property "sonar.login", "admin"
+        property "sonar.password", "pass123"
+        property "sonar.sourceEncoding", "UTF-8"
+
+        // Coverage config
+        property "sonar.junit.reportsPath", "build/test-results/testDebugUnitTest"
+        property "sonar.java.coveragePlugin", "jacoco"
+        property "sonar.coverage.jacoco.xmlReportPaths", "**/jacoco/jacocoUnitTestReport/jacocoUnitTestReport.xml"
+        property "sonar.coverage.exclusions", "${unitTestCoverageExclusions.join(', ')}"
+    }
+}
